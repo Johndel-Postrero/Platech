@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // If simulation is running, restart it with new speed
             if (simulationRunning && !simulationPaused) {
                 clearInterval(timer);
-                timer = setInterval(updateSimulation, 100 / speedMultiplier);
+                timer = setInterval(updateSimulation, 1000 / speedMultiplier);
             }
         });
         
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
             simulationPaused = false;
             pauseButton.textContent = 'Pause';
             pauseButton.classList.remove('resume');
-            timer = setInterval(updateSimulation, 100 / speedMultiplier);
+            timer = setInterval(updateSimulation, 1000 / speedMultiplier);
             logEvent('Simulation resumed');
         } else {
             // Pause simulation
@@ -144,51 +144,59 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Generate the job table based on user input
     function generateJobTable() {
-        const numJobs = parseInt(numJobsInput.value);
-        totalMemory = parseInt(totalMemoryInput.value);
+    const numJobs = parseInt(numJobsInput.value);
+    totalMemory = parseInt(totalMemoryInput.value);
+
+    // Check if numJobs is a number and greater than 0
+    if (isNaN(numJobs) || numJobs <= 0) {
+        alert('Please enter a valid number of jobs (greater than 0).');
+        numJobsInput.focus(); // Focus the input box for correction
+        return;
+    }
+
+    // Check if totalMemory is a number and valid
+    if (isNaN(totalMemory) || totalMemory < OS_KERNEL_SIZE + 10) {
+        alert('Total memory must be at least ' + (OS_KERNEL_SIZE + 10) + ' KB.');
+        totalMemoryInput.focus(); // Focus the input box for correction
+        return;
+    }
+
+    // Initialize jobs array
+    jobs = [];
+    jobPositions = {}; // Reset job positions
     
-        // Check if numJobs is a number and greater than 0
-        if (isNaN(numJobs) || numJobs <= 0) {
-            alert('Please enter a valid number of jobs (greater than 0).');
-            numJobsInput.focus(); // Focus the input box for correction
-            return;
+    for (let i = 0; i < numJobs; i++) {
+        const jobId = 'Job-' + (i + 1);
+        jobs.push({
+            id: jobId,
+            size: 0,
+            loadingTime: 0,
+            finishTime: 0,
+            status: 'waiting',
+            position: -1,
+            color: COLOR_PALETTE[i % COLOR_PALETTE.length]
+        });
+        jobPositions[jobId] = -1; // Initialize position tracking
+    }
+
+    renderJobTable();
+    initMemoryVisualization();
+
+    startSimulationBtn.disabled = false;
+    resetSimulationBtn.disabled = false;
+    document.getElementById('pauseSimulation').disabled = true;
+
+    updateMemoryStats();
+    logEvent('System initialized with ' + totalMemory + ' KB memory and ' + numJobs + ' jobs');
+    
+    // Automatically focus the first job's size cell after generating the table
+    setTimeout(() => {
+        const firstSizeCell = document.querySelector('td[data-field="size"][data-index="0"]');
+        if (firstSizeCell) {
+            firstSizeCell.click();
         }
-    
-        // Check if totalMemory is a number and valid
-        if (isNaN(totalMemory) || totalMemory < OS_KERNEL_SIZE + 10) {
-            alert('Total memory must be at least ' + (OS_KERNEL_SIZE + 10) + ' KB.');
-            totalMemoryInput.focus(); // Focus the input box for correction
-            return;
-        }
-    
-        // Initialize jobs array
-        jobs = [];
-        jobPositions = {}; // Reset job positions
-        
-        for (let i = 0; i < numJobs; i++) {
-            const jobId = 'Job-' + (i + 1);
-            jobs.push({
-                id: jobId,
-                size: 0,
-                loadingTime: 0,
-                finishTime: 0,
-                status: 'waiting',
-                position: -1,
-                color: COLOR_PALETTE[i % COLOR_PALETTE.length]
-            });
-            jobPositions[jobId] = -1; // Initialize position tracking
-        }
-    
-        renderJobTable();
-        initMemoryVisualization();
-    
-        startSimulationBtn.disabled = false;
-        resetSimulationBtn.disabled = false;
-        document.getElementById('pauseSimulation').disabled = true;
-    
-        updateMemoryStats();
-        logEvent('System initialized with ' + totalMemory + ' KB memory and ' + numJobs + ' jobs');
-    }    
+    }, 0);
+}
   
     // Render the job table
     function renderJobTable() {
@@ -245,12 +253,38 @@ document.addEventListener('DOMContentLoaded', function() {
         input.type = 'number';
         input.value = jobs[index][field];
         input.style.width = '100%';
+        input.autofocus = true; // Add this to automatically focus the input
     
         cell.textContent = '';
         cell.appendChild(input);
         input.focus();
     
-        input.addEventListener('blur', function () {
+        // Function to handle moving to next cell
+        const moveToNextCell = function() {
+            const nextFieldOrder = ['size', 'loadingTime', 'finishTime'];
+            const currentFieldIndex = nextFieldOrder.indexOf(field);
+            let nextFieldIndex = currentFieldIndex + 1;
+            let nextRowIndex = index;
+            
+            // If we're at the last field, move to next job's first field
+            if (nextFieldIndex >= nextFieldOrder.length) {
+                nextFieldIndex = 0;
+                nextRowIndex = index + 1;
+            }
+            
+            // If we're at the last job, wrap around to first job
+            if (nextRowIndex >= jobs.length) {
+                nextRowIndex = 0;
+            }
+            
+            // Find the next cell to focus
+            const nextCell = document.querySelector(`td[data-field="${nextFieldOrder[nextFieldIndex]}"][data-index="${nextRowIndex}"]`);
+            if (nextCell) {
+                nextCell.click(); // Trigger edit on next cell
+            }
+        };
+    
+        input.addEventListener('blur', function() {
             const value = parseInt(input.value);
             let isValid = true;
     
@@ -281,14 +315,43 @@ document.addEventListener('DOMContentLoaded', function() {
             cell.addEventListener('click', editCell);
         });
     
-        input.addEventListener('input', function () {
+        input.addEventListener('input', function() {
             input.placeholder = '';
             input.classList.remove('invalid');
         });
     
-        input.addEventListener('keydown', function (e) {
+        input.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
-                input.blur();
+                const value = parseInt(input.value);
+                let isValid = true;
+    
+                // Same validation as blur
+                if (isNaN(value)) {
+                    isValid = false;
+                    input.value = '';
+                    input.placeholder = 'Enter a number';
+                } else if ((field === 'size' || field === 'finishTime') && value <= 0) {
+                    isValid = false;
+                    input.value = '';
+                    input.placeholder = 'Must be > 0';
+                } else if (field === 'loadingTime' && value < 0) {
+                    isValid = false;
+                    input.value = '';
+                    input.placeholder = 'Must be ≥ 0';
+                }
+    
+                if (!isValid) {
+                    input.classList.add('invalid');
+                    return;
+                }
+    
+                // If valid, update and move to next cell
+                jobs[index][field] = value;
+                const unit = field === 'size' ? 'KB' : 'msec';
+                cell.textContent = `${value} ${unit}`;
+                cell.addEventListener('click', editCell);
+                
+                moveToNextCell();
             }
         });
     
@@ -513,7 +576,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Start timer for simulation with speed multiplier
-        timer = setInterval(updateSimulation, 100 / speedMultiplier);
+        function runSimulationStep() {
+            if (!simulationRunning || simulationPaused) return;
+        
+            updateSimulation(); // advance time and check jobs
+        
+            // Schedule next frame
+            timer = setTimeout(runSimulationStep, 1000 / speedMultiplier);
+        }
+        runSimulationStep();
         
         logEvent('Simulation started at ' + speedMultiplier + 'x speed');
     }
@@ -563,18 +634,30 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update the simulation state
     function updateSimulation() {
-        // Increment time
-        currentTime += 10;
+        currentTime += 1;
         timerElement.textContent = `${currentTime} ms`;
-        
-        // Process jobs
-        processJobs();
-        
-        // Check if all jobs are finished
+    
+        // Capture job statuses before update
+        const previousStatuses = jobs.map(j => j.status);
+    
+        processJobs(); // May change job statuses
+    
+        // Detect changes and show alerts
+        jobs.forEach((job, index) => {
+            const prevStatus = previousStatuses[index];
+            if (prevStatus !== job.status) {
+                if (job.status === 'running') {
+                    alert(`${job.id} loaded at ${currentTime} ms`);
+                } else if (job.status === 'finished') {
+                    alert(`${job.id} finished at ${currentTime} ms`);
+                }
+            }
+        });
+    
+        // End simulation if all jobs are finished
         const allFinished = jobs.every(job => job.status === 'finished');
         if (allFinished) {
-            clearInterval(timer);
-            timer = null;
+            clearTimeout(timer);
             simulationRunning = false;
             document.getElementById('pauseSimulation').disabled = true;
             logEvent('All jobs have completed');
