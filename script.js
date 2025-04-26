@@ -259,32 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cell.appendChild(input);
         input.focus();
     
-        // Function to handle moving to next cell
-        const moveToNextCell = function() {
-            const nextFieldOrder = ['size', 'loadingTime', 'finishTime'];
-            const currentFieldIndex = nextFieldOrder.indexOf(field);
-            let nextFieldIndex = currentFieldIndex + 1;
-            let nextRowIndex = index;
-            
-            // If we're at the last field, move to next job's first field
-            if (nextFieldIndex >= nextFieldOrder.length) {
-                nextFieldIndex = 0;
-                nextRowIndex = index + 1;
-            }
-            
-            // If we're at the last job, wrap around to first job
-            if (nextRowIndex >= jobs.length) {
-                nextRowIndex = 0;
-            }
-            
-            // Find the next cell to focus
-            const nextCell = document.querySelector(`td[data-field="${nextFieldOrder[nextFieldIndex]}"][data-index="${nextRowIndex}"]`);
-            if (nextCell) {
-                nextCell.click(); // Trigger edit on next cell
-            }
-        };
-    
-        input.addEventListener('blur', function() {
+        input.addEventListener('blur', function () {
             const value = parseInt(input.value);
             let isValid = true;
     
@@ -315,12 +290,12 @@ document.addEventListener('DOMContentLoaded', function() {
             cell.addEventListener('click', editCell);
         });
     
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
             input.placeholder = '';
             input.classList.remove('invalid');
         });
     
-        input.addEventListener('keydown', function(e) {
+        input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 const value = parseInt(input.value);
                 let isValid = true;
@@ -345,13 +320,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
     
-                // If valid, update and move to next cell
+                // If valid, update the value
                 jobs[index][field] = value;
                 const unit = field === 'size' ? 'KB' : 'msec';
                 cell.textContent = `${value} ${unit}`;
                 cell.addEventListener('click', editCell);
-                
-                moveToNextCell();
+    
+                // Check if this is the last cell (finish time of the last job)
+                if (field === 'finishTime' && index === jobs.length - 1) {
+                    input.blur(); // Remove focus
+                } else {
+                    // Move to the next cell
+                    const nextFieldOrder = ['size', 'loadingTime', 'finishTime'];
+                    const currentFieldIndex = nextFieldOrder.indexOf(field);
+                    let nextFieldIndex = currentFieldIndex + 1;
+                    let nextRowIndex = index;
+    
+                    // If we're at the last field, move to next job's first field
+                    if (nextFieldIndex >= nextFieldOrder.length) {
+                        nextFieldIndex = 0;
+                        nextRowIndex = index + 1;
+                    }
+    
+                    // If we're at the last job, wrap around to first job
+                    if (nextRowIndex >= jobs.length) {
+                        nextRowIndex = 0;
+                    }
+    
+                    // Find the next cell to focus
+                    const nextCell = document.querySelector(`td[data-field="${nextFieldOrder[nextFieldIndex]}"][data-index="${nextRowIndex}"]`);
+                    if (nextCell) {
+                        nextCell.click(); // Trigger edit on next cell
+                    }
+                }
             }
         });
     
