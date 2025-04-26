@@ -153,9 +153,25 @@ td.editable::after {
     padding: 10px;
     background-color: #f9f9f9;
     border-radius: 8px;
-    min-height: 100px;
+    min-height: px;
     display: flex;
     justify-content: center;
+}
+.memory-log-wrapper {
+    display: flex;
+    gap: 20px; /* spacing between memory and event log */
+    align-items: flex-start; /* align top */
+    margin-top: 20px;
+}
+
+.memory-container {
+    flex-shrink: 0; /* prevent shrinking */
+}
+
+.event-log-container {
+    flex: 1; /* take remaining space */
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 #memoryVisualization {
@@ -244,6 +260,22 @@ td.editable::after {
         transform: translateX(0) translateY(0) scale(1);
         box-shadow: none;
         z-index: 1;
+    }
+}
+
+/* Add simulation start transition */
+.container.simulation-start {
+    animation: slideIn 1s ease-in-out;
+}
+
+@keyframes slideIn {
+    0% {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
     }
 }
 
@@ -402,4 +434,36 @@ input {
 
 #pauseSimulation.resume:hover {
     background-color: #2980b9;
+}
+
+@keyframes swapAnimation {
+    0% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+.job-swap {
+    animation: swapAnimation 0.5s ease-in-out;
+}
+
+/* Add fade-in animation for memory slots */
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.memory-slot {
+    animation: fadeIn 0.5s ease-in-out;
 }

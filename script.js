@@ -431,36 +431,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update memory visualization with animation
     function updateMemoryVisualization() {
-        // Bubble free spaces before visualization
         bubbleFreeSpaces();
-        
+
         memoryVisualizationElement.innerHTML = '';
-        
         const container = document.createElement('div');
         container.style.width = '100%';
-        
-        // Create a map of job positions for animation
-        const newJobPositions = {};
-        
-        // Calculate start positions for each slot
-        let currentPosition = 0;
-        
+
         memorySlots.forEach((slot, index) => {
             const slotElement = document.createElement('div');
             slotElement.classList.add('memory-slot');
-            
-            // Calculate height as a percentage of total memory
+
             const heightPercentage = (slot.size / totalMemory) * 500; // Scale to 500px
-            
             slotElement.style.height = `${heightPercentage}px`;
             slotElement.style.width = '100%';
-            
-            // Assign position for animation
-            if (slot.type === 'job') {
-                newJobPositions[slot.jobId] = currentPosition;
-            }
-            
-            currentPosition += heightPercentage;
 
             if (slot.type === 'os') {
                 slotElement.classList.add('os-kernel');
@@ -468,30 +451,23 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (slot.type === 'job') {
                 const job = jobs.find(j => j.id === slot.jobId);
                 slotElement.classList.add('job');
-                slotElement.id = `job-slot-${job.id}`;
                 slotElement.style.backgroundColor = job.color;
                 slotElement.textContent = `${job.id} (${slot.size}KB)`;
-                
-                // Add animation class if position changed
-                if (jobPositions[job.id] !== undefined && 
-                    jobPositions[job.id] !== -1 && 
-                    newJobPositions[job.id] !== jobPositions[job.id]) {
-                    slotElement.classList.add('job-animate');
+
+                // Add swap animation if the job has moved
+                if (jobPositions[job.id] !== undefined && jobPositions[job.id] !== index) {
+                    slotElement.classList.add('job-swap');
                 }
+                jobPositions[job.id] = index; // Update position
             } else {
                 slotElement.classList.add('free-space');
                 slotElement.textContent = `Free (${slot.size}KB)`;
             }
-            
+
             container.appendChild(slotElement);
         });
-        
+
         memoryVisualizationElement.appendChild(container);
-        
-        // Update job positions for next animation cycle
-        for (const jobId in newJobPositions) {
-            jobPositions[jobId] = newJobPositions[jobId];
-        }
     }
     
     // Update memory statistics
@@ -550,44 +526,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Start the simulation
     function startSimulation() {
-        // Validate jobs first
-        if (!validateJobInputs()) {
-            return;
-        }
-        
-        // Prevent starting if already running
-        if (simulationRunning) {
-            return;
-        }
-        
-        // Mark simulation as running
+        if (!validateJobInputs()) return;
+
+        if (simulationRunning) return;
+
         simulationRunning = true;
         simulationPaused = false;
-        
-        // Update button states
+
         startSimulationBtn.disabled = true;
         generateTableBtn.disabled = true;
         document.getElementById('pauseSimulation').disabled = false;
-        document.getElementById('pauseSimulation').textContent = 'Pause';
-        document.getElementById('pauseSimulation').classList.remove('resume');
-        
-        // Reset timer if already exists
-        if (timer) {
-            clearInterval(timer);
-        }
-        
-        // Start timer for simulation with speed multiplier
-        function runSimulationStep() {
-            if (!simulationRunning || simulationPaused) return;
-        
-            updateSimulation(); // advance time and check jobs
-        
-            // Schedule next frame
-            timer = setTimeout(runSimulationStep, 1000 / speedMultiplier);
-        }
-        runSimulationStep();
-        
-        logEvent('Simulation started at ' + speedMultiplier + 'x speed');
+
+        // Add a cool transition effect
+        document.querySelector('.container').classList.add('simulation-start');
+        setTimeout(() => {
+            logEvent('Simulation started');
+            runSimulationStep();
+        }, 1000); // Delay to match the animation
     }
     
     // Reset the simulation
@@ -643,14 +598,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
         processJobs(); // May change job statuses
     
-        // Detect changes and show alerts
+        // Detect changes and log events
         jobs.forEach((job, index) => {
             const prevStatus = previousStatuses[index];
             if (prevStatus !== job.status) {
                 if (job.status === 'running') {
-                    alert(`${job.id} loaded at ${currentTime} ms`);
+                    logEvent(`${job.id} loaded at ${currentTime} ms`);
                 } else if (job.status === 'finished') {
-                    alert(`${job.id} finished at ${currentTime} ms`);
+                    logEvent(`${job.id} finished at ${currentTime} ms`);
                 }
             }
         });

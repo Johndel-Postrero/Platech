@@ -12,7 +12,16 @@
         <p><strong>Teacher:</strong> Mr. ReyCals</p>
         <p><strong>Course:</strong> BSIT 2A</p>
 
-        <a href="index.html" class="start-btn">Start Simulation</a>
+        <a href="index.html" id="startSimulationBtn" class="start-btn">Start Simulation</a>
     </div>
+    <script>
+        document.getElementById('startSimulationBtn').addEventListener('click', function (e) {
+            e.preventDefault();
+            document.body.classList.add('fade-out');
+            setTimeout(() => {
+                window.location.href = this.href;
+            }, 1000); // Match the animation duration
+        });
+    </script>
 </body>
 </html>

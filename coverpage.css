@@ -47,3 +47,18 @@ p {
 .start-btn:hover {
     background-color: #45a049;
 }
+
+/* Add fade-out animation */
+body.fade-out {
+    animation: fadeOut 1s forwards;
+}
+
+@keyframes fadeOut {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
