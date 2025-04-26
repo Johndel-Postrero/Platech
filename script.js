@@ -541,6 +541,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('.container').classList.add('simulation-start');
         setTimeout(() => {
             logEvent('Simulation started');
+            
+            // Initialize the timer with the current speedMultiplier
+            timer = setInterval(updateSimulation, 1000 / speedMultiplier);
+            
             runSimulationStep();
         }, 1000); // Delay to match the animation
     }
