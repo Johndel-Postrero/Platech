@@ -1,3 +1,10 @@
+window.addEventListener('load', function () {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const totalMemoryInput = document.getElementById('totalMemory');
@@ -68,9 +75,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const speedSlider = document.createElement('input');
         speedSlider.type = 'range';
         speedSlider.id = 'speedControl';
-        speedSlider.min = '0.5';
+        speedSlider.min = '0.1';
         speedSlider.max = '5';
-        speedSlider.step = '0.5';
+        speedSlider.step = '0.1';
         speedSlider.value = '1';
         
         // Create speed value display
