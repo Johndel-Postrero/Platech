@@ -3,10 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relocatable Dynamic Partitioning Simulation</title>
+    <title>Futuristic Memory Management Simulation</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div id="loadingOverlay">
+        <div class="loader"></div>
+    </div>
+    
+    <!-- Fixed Stats Bar -->
+    <div class="stats-bar">
+        <div class="timer-display">
+            <span>Timer: </span>
+            <span id="timer">0 ms</span>
+        </div>
+        <div class="memory-metrics">
+            <div class="metric">
+                <span>Total Memory: </span>
+                <span id="memoryTotal">0</span> KB
+            </div>
+            <div class="metric">
+                <span>Used Memory: </span>
+                <span id="memoryUsed">10</span> KB
+            </div>
+            <div class="metric">
+                <span>Free Space: </span>
+                <span id="memoryFree">0</span> KB
+            </div>
+        </div>
+    </div>
+    
     <div class="container">
         <a href="Coverpage.html" class="back-btn" title="Back to Start Page">&#8592; Back</a>
         
@@ -16,11 +42,11 @@
         <div class="config-panel">
             <div class="input-group">
                 <label for="totalMemory">Total Memory Size (KB):</label>
-                <input type="number" id="totalMemory" min="20" value="">
+                <input type="number" id="totalMemory" min="20" value="100">
             </div>
             <div class="input-group">
                 <label for="numJobs">Number of Jobs:</label>
-                <input type="number" id="numJobs" min="1" value="">
+                <input type="number" id="numJobs" min="1" value="5">
             </div>
             <button id="generateTableBtn">Generate Table</button>
         </div>
@@ -46,10 +72,7 @@
         <div class="control-panel">
             <button id="startSimulation" disabled>Start Simulation</button>
             <button id="resetSimulation" disabled>Reset Simulation</button>
-            <div class="timer-container">
-                <span>Timer: </span>
-                <span id="timer">0 ms</span>
-            </div>
+            <button id="pauseSimulation" disabled>Pause</button>
         </div>
         
         <!-- Memory Visualization -->
@@ -66,16 +89,12 @@
                         <span>Free Space</span>
                     </div>
                 </div>
-                <div class="memory-stats">
-                    <p>Total Memory: <span id="memoryTotal">0</span> KB</p>
-                    <p>Used Memory: <span id="memoryUsed">10</span> KB</p>
-                    <p>Free Memory: <span id="memoryFree">0</span> KB</p>
-                </div>
             </div>
         
-            <!-- NEW WRAPPER ADDED HERE -->
+            <!-- Memory and Log Wrapper -->
             <div class="memory-log-wrapper">
                 <div class="memory-container">
+                    <div class="memory-header">Memory</div>
                     <div id="memoryLabels"></div>
                     <div id="memoryVisualization"></div>
                 </div>
@@ -85,7 +104,7 @@
                 </div>
             </div>
         </div>
-    
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
