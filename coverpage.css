@@ -204,6 +204,19 @@
     color: var(--primary-color);
   }
   
+  .member .member-alt {
+    display: none;
+    transition: opacity 0.3s;
+  }
+  .member:hover .member-name {
+    display: none;
+  }
+  .member:hover .member-alt {
+    display: inline;
+    color: var(--primary-color);
+    opacity: 1;
+  }
+  
   .course-info {
     margin-bottom: 20px;
   }
@@ -357,4 +370,82 @@
       font-size: 1.8rem;
     }
   }
-  
+
+  .about-section {
+    margin: 40px auto 0 auto;
+    max-width: 1000px;
+    background: linear-gradient(90deg, #181818 60%, #232323 100%);
+    border-radius: 12px;
+    box-shadow: 0 0 30px rgba(0,255,255,0.08), 0 0 10px rgba(255,0,255,0.08);
+    padding: 32px 28px;
+    border: 1px solid var(--border-color);
+    animation: aboutFadeIn 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.about-title {
+    color: var(--primary-color);
+    font-size: 2rem;
+    margin-bottom: 18px;
+    text-align: center;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(0,255,255,0.3);
+    animation: aboutTitleGlow 2s infinite alternate;
+}
+
+@keyframes aboutTitleGlow {
+    0% { text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff44; }
+    100% { text-shadow: 0 0 20px #00ffff, 0 0 40px #ff00ff44; }
+}
+
+.about-content {
+    color: var(--text-color);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    animation: aboutContentSlide 1.2s 0.3s both;
+}
+
+@keyframes aboutFadeIn {
+    from { opacity: 0; transform: translateY(40px);}
+    to { opacity: 1; transform: translateY(0);}
+}
+
+@keyframes aboutContentSlide {
+    from { opacity: 0; transform: translateY(30px);}
+    to { opacity: 1; transform: translateY(0);}
+}
+
+.about-content ul {
+    margin: 16px 0 16px 24px;
+    padding-left: 0;
+    list-style: disc;
+    animation: aboutListFade 1.2s 0.6s both;
+}
+
+@keyframes aboutListFade {
+    from { opacity: 0; transform: translateX(-30px);}
+    to { opacity: 1; transform: translateX(0);}
+}
+
+.about-content li {
+    margin-bottom: 8px;
+    color: var(--accent-color);
+    font-weight: 500;
+    text-shadow: 0 0 4px #ffff0055;
+}
+
+.about-content strong {
+    color: var(--secondary-color);
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .about-section {
+        padding: 18px 8px;
+        font-size: 0.98rem;
+    }
+    .about-title {
+        font-size: 1.3rem;
+    }
+}
