@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let jobPositions = {} // To track job positions for animation
   let rejectedJobs = new Set() // Track jobs that have been rejected due to size
   let actualStartTimes = {} // Track when jobs actually start running
+  let lastLoggedTime = -1 // Track the last time we logged running jobs
 
   // Initialize the application
   function init() {
@@ -168,6 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
     jobPositions = {} // Reset job positions
     rejectedJobs = new Set() // Reset rejected jobs
     actualStartTimes = {} // Reset actual start times
+    lastLoggedTime = -1 // Reset last logged time
 
     for (let i = 0; i < numJobs; i++) {
       const jobId = "Job-" + (i + 1)
@@ -527,37 +529,53 @@ document.addEventListener("DOMContentLoaded", () => {
     eventLogElement.prepend(logEntry)
   }
 
+  // Log the status of all running jobs
+  function logRunningJobs() {
+    if (currentTime !== lastLoggedTime) {
+      lastLoggedTime = currentTime
+
+      // Get all running jobs
+      const runningJobs = jobs.filter((job) => job.status === "running")
+
+      if (runningJobs.length > 0) {
+        // Create a message with all running jobs
+        const jobsList = runningJobs.map((job) => job.id).join(", ")
+        logEvent(`${jobsList} - running`)
+      }
+    }
+  }
+
   // Function to validate the job inputs are valid before starting simulation
   function validateJobInputs() {
-    let isValid = true;
+    let isValid = true
 
     // Check each job has valid parameters
     for (let i = 0; i < jobs.length; i++) {
-        const job = jobs[i];
+      const job = jobs[i]
 
-        if (job.size <= 0) {
-            logEvent(`Error: ${job.id} has invalid size (must be > 0)`);
-            isValid = false;
-        }
+      if (job.size <= 0) {
+        logEvent(`Error: ${job.id} has invalid size (must be > 0)`)
+        isValid = false
+      }
 
-        if (job.size > totalMemory) {
-            logEvent(`Error: ${job.id} has invalid size (exceeds total memory of ${totalMemory} KB)`);
-            isValid = false;
-        }
+      if (job.size > totalMemory) {
+        logEvent(`Error: ${job.id} has invalid size (exceeds total memory of ${totalMemory} KB)`)
+        isValid = false
+      }
 
-        if (job.finishTime <= 0) {
-            logEvent(`Error: ${job.id} has invalid finish time (must be > 0)`);
-            isValid = false;
-        }
+      if (job.finishTime <= 0) {
+        logEvent(`Error: ${job.id} has invalid finish time (must be > 0)`)
+        isValid = false
+      }
 
-        if (job.loadingTime < 0) {
-            logEvent(`Error: ${job.id} has invalid loading time (must be >= 0)`);
-            isValid = false;
-        }
+      if (job.loadingTime < 0) {
+        logEvent(`Error: ${job.id} has invalid loading time (must be >= 0)`)
+        isValid = false
+      }
     }
 
-    return isValid;
-}
+    return isValid
+  }
 
   // Check if a job is too large to ever fit in memory
   function isJobTooLarge(job) {
@@ -568,59 +586,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Start the simulation
   function startSimulation() {
-    if (!validateJobInputs()) return;
+    if (!validateJobInputs()) return
 
-    if (simulationRunning) return;
+    if (simulationRunning) return
 
-    simulationRunning = true;
-    simulationPaused = false;
+    simulationRunning = true
+    simulationPaused = false
+    lastLoggedTime = -1 // Reset last logged time
 
-    startSimulationBtn.disabled = true;
-    generateTableBtn.disabled = true;
-    document.getElementById("pauseSimulation").disabled = false;
+    startSimulationBtn.disabled = true
+    generateTableBtn.disabled = true
+    document.getElementById("pauseSimulation").disabled = false
 
     // Check for jobs that are too large before starting
     jobs.forEach((job) => {
-        if (isJobTooLarge(job)) {
-            rejectedJobs.add(job.id);
-            job.status = "rejected";
-            logEvent(`${job.id} (${job.size}KB) rejected - exceeds available memory (${totalMemory - OS_KERNEL_SIZE}KB)`);
-        }
-    });
+      if (isJobTooLarge(job)) {
+        rejectedJobs.add(job.id)
+        job.status = "rejected"
+        logEvent(`${job.id} (${job.size}KB) rejected - exceeds available memory (${totalMemory - OS_KERNEL_SIZE}KB)`)
+      }
+    })
 
     // Update the job table to show rejected jobs
-    renderJobTable();
+    renderJobTable()
 
     // Add a cool transition effect
-    document.querySelector(".container").classList.add("simulation-start");
+    document.querySelector(".container").classList.add("simulation-start")
     setTimeout(() => {
-        logEvent("Simulation started");
+      logEvent("Simulation started")
 
-        // Process jobs immediately to handle jobs with 0ms loading time
-        processJobs();
+      // Process jobs immediately to handle jobs with 0ms loading time
+      processJobs()
 
-        // Initialize the timer with the current speedMultiplier
-        timer = setInterval(updateSimulation, 100 / speedMultiplier);
+      // Initialize the timer with the current speedMultiplier
+      timer = setInterval(updateSimulation, 100 / speedMultiplier)
 
-        runSimulationStep();
+      runSimulationStep()
 
-        // Scroll to visualization container with smooth animation
-        if (visualizationContainer) {
-            visualizationContainer.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
+      // Scroll to visualization container with smooth animation
+      if (visualizationContainer) {
+        visualizationContainer.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        })
 
-            // Add highlight animation to visualization container
-            visualizationContainer.classList.add('highlight-container');
+        // Add highlight animation to visualization container
+        visualizationContainer.classList.add("highlight-container")
 
-            // Remove highlight class after animation completes
-            setTimeout(() => {
-                visualizationContainer.classList.remove('highlight-container');
-            }, 2000);
-        }
-    }, 1000); // Delay to match the animation
-}
+        // Remove highlight class after animation completes
+        setTimeout(() => {
+          visualizationContainer.classList.remove("highlight-container")
+        }, 2000)
+      }
+    }, 1000) // Delay to match the animation
+  }
 
   // Reset the simulation
   function resetSimulation() {
@@ -652,6 +671,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Reset rejected jobs and actual start times
     rejectedJobs = new Set()
     actualStartTimes = {}
+    lastLoggedTime = -1 // Reset last logged time
 
     // Reset memory visualization
     initMemoryVisualization()
@@ -676,7 +696,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateSimulation() {
     currentTime += 1
     timerElement.textContent = `${currentTime} ms`
-    
+
     // Capture job statuses before update
     const previousStatuses = jobs.map((j) => j.status)
 
@@ -696,6 +716,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
 
+    // Log running jobs at each millisecond
+    logRunningJobs()
+
     // Update the job table to reflect current statuses
     renderJobTable()
 
@@ -711,145 +734,144 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Process jobs based on their status and time
+  // Process waiting jobs based on their status and time
   function processJobs() {
     // Process waiting jobs that should start loading
     const waitingJobs = jobs.filter(
-        (job) => job.status === "waiting" && currentTime >= job.loadingTime && !rejectedJobs.has(job.id)
-    );
+      (job) => job.status === "waiting" && currentTime >= job.loadingTime && !rejectedJobs.has(job.id),
+    )
 
-    // Sort waiting jobs by priority: loading time, then finish time, then job ID
+    // Sort waiting jobs by priority: loading time, then job ID (number)
     waitingJobs.sort((a, b) => {
-        if (a.loadingTime !== b.loadingTime) return a.loadingTime - b.loadingTime;
-        if (a.finishTime !== b.finishTime) return a.finishTime - b.finishTime;
-        const aNum = Number.parseInt(a.id.split("-")[1]);
-        const bNum = Number.parseInt(b.id.split("-")[1]);
-        return aNum - bNum;
-    });
+      if (a.loadingTime !== b.loadingTime) return a.loadingTime - b.loadingTime
+      const aNum = Number.parseInt(a.id.split("-")[1])
+      const bNum = Number.parseInt(b.id.split("-")[1])
+      return aNum - bNum
+    })
 
     // Process running jobs that should finish
     jobs.forEach((job) => {
-        if (job.status === "running") {
-            const startTime = actualStartTimes[job.id] || job.loadingTime;
-            if (currentTime >= startTime + job.finishTime) {
-                deallocateJob(job);
+      if (job.status === "running") {
+        const startTime = actualStartTimes[job.id] || job.loadingTime
+        if (currentTime >= startTime + job.finishTime) {
+          deallocateJob(job)
 
-                // Immediately try to allocate memory for waiting jobs after deallocation
-                waitingJobs.forEach((waitingJob) => {
-                    if (waitingJob.status === "waiting") {
-                        const wasAllocated = tryAllocateJob(waitingJob);
+          // Immediately try to allocate memory for waiting jobs after deallocation
+          waitingJobs.forEach((waitingJob) => {
+            if (waitingJob.status === "waiting") {
+              const wasAllocated = tryAllocateJob(waitingJob)
 
-                        // Log the event if the job is still waiting due to insufficient memory
-                        if (!wasAllocated && waitingJob.status === "waiting") {
-                            logEvent(`${waitingJob.id} (${waitingJob.size}KB) insufficient memory - waiting`);
-                        }
+              // Log the event if the job is still waiting due to insufficient memory
+              if (!wasAllocated && waitingJob.status === "waiting") {
+                logEvent(`${waitingJob.id} (${waitingJob.size}KB) insufficient memory - waiting`)
+              }
 
-                        // Log the event immediately when the job starts running
-                        if (waitingJob.status === "running" && currentTime === waitingJob.loadingTime) {
-                            logEvent(`${waitingJob.id} loaded at ${currentTime} ms`);
-                        }
-                    }
-                });
+              // Log the event immediately when the job starts running
+              if (waitingJob.status === "running" && currentTime === waitingJob.loadingTime) {
+                logEvent(`${waitingJob.id} loaded at ${currentTime} ms`)
+              }
             }
+          })
         }
-    });
+      }
+    })
 
     // Process waiting jobs that couldn't be allocated earlier
     waitingJobs.forEach((job) => {
-        if (isJobTooLarge(job)) {
-            rejectedJobs.add(job.id);
-            job.status = "rejected";
-            logEvent(`${job.id} (${job.size}KB) rejected - exceeds available memory (${totalMemory - OS_KERNEL_SIZE}KB)`);
-        } else {
-            const wasAllocated = tryAllocateJob(job);
+      if (isJobTooLarge(job)) {
+        rejectedJobs.add(job.id)
+        job.status = "rejected"
+        logEvent(`${job.id} (${job.size}KB) rejected - exceeds available memory (${totalMemory - OS_KERNEL_SIZE}KB)`)
+      } else {
+        const wasAllocated = tryAllocateJob(job)
 
-            // Log the event if the job is still waiting due to insufficient memory
-            if (!wasAllocated && job.status === "waiting") {
-                logEvent(`${job.id} (${job.size}KB) insufficient memory - waiting`);
-            }
-
-            // Log the event immediately when the job starts running
-            if (job.status === "running" && currentTime === job.loadingTime) {
-                logEvent(`${job.id} loaded at ${currentTime} ms`);
-            }
+        // Log the event if the job is still waiting due to insufficient memory
+        if (!wasAllocated && job.status === "waiting") {
+          logEvent(`${job.id} (${job.size}KB) insufficient memory - waiting`)
         }
-    });
+
+        // Log the event immediately when the job starts running
+        if (job.status === "running" && currentTime === job.loadingTime) {
+          logEvent(`${job.id} loaded at ${currentTime} ms`)
+        }
+      }
+    })
   }
 
   // Try to allocate memory for a job
   function tryAllocateJob(job) {
     // Skip rejected jobs
-    if (rejectedJobs.has(job.id)) return false;
+    if (rejectedJobs.has(job.id)) return false
 
     // First, compact memory to ensure all jobs are at the top
-    compactMemory();
+    compactMemory()
 
     // Find a suitable free memory slot
-    let freeSlotIndex = -1;
+    let freeSlotIndex = -1
 
     for (let i = 0; i < memorySlots.length; i++) {
-        if (memorySlots[i].type === "free" && memorySlots[i].size >= job.size) {
-            freeSlotIndex = i;
-            break;
-        }
+      if (memorySlots[i].type === "free" && memorySlots[i].size >= job.size) {
+        freeSlotIndex = i
+        break
+      }
     }
 
     if (freeSlotIndex === -1) {
-        // If no suitable slot, the job remains waiting
-        return false;
+      // If no suitable slot, the job remains waiting
+      return false
     }
 
     // Allocate memory for the job
-    const freeSlot = memorySlots[freeSlotIndex];
+    const freeSlot = memorySlots[freeSlotIndex]
 
     // Create new job slot
     const jobSlot = {
-        type: "job",
-        size: job.size,
-        jobId: job.id,
-    };
+      type: "job",
+      size: job.size,
+      jobId: job.id,
+    }
 
     // If we're splitting a free slot
     if (freeSlot.size > job.size) {
-        // Create a new free slot with remaining size
-        const newFreeSlot = {
-            type: "free",
-            size: freeSlot.size - job.size,
-            jobId: null,
-        };
+      // Create a new free slot with remaining size
+      const newFreeSlot = {
+        type: "free",
+        size: freeSlot.size - job.size,
+        jobId: null,
+      }
 
-        // Remove the original free slot
-        memorySlots.splice(freeSlotIndex, 1);
+      // Remove the original free slot
+      memorySlots.splice(freeSlotIndex, 1)
 
-        // Insert the job at the correct position
-        memorySlots.splice(freeSlotIndex, 0, jobSlot);
+      // Insert the job at the correct position
+      memorySlots.splice(freeSlotIndex, 0, jobSlot)
 
-        // Add the free slot at the end
-        memorySlots.push(newFreeSlot);
+      // Add the free slot at the end
+      memorySlots.push(newFreeSlot)
     } else {
-        // If exact size match, remove the free slot and insert the job
-        memorySlots.splice(freeSlotIndex, 1);
-        memorySlots.splice(freeSlotIndex, 0, jobSlot);
+      // If exact size match, remove the free slot and insert the job
+      memorySlots.splice(freeSlotIndex, 1)
+      memorySlots.splice(freeSlotIndex, 0, jobSlot)
     }
 
     // Update job status
-    job.status = "running";
-    job.position = freeSlotIndex;
-    jobPositions[job.id] = freeSlotIndex; // Update position for animation
+    job.status = "running"
+    job.position = freeSlotIndex
+    jobPositions[job.id] = freeSlotIndex // Update position for animation
 
     // Record the actual start time
-    actualStartTimes[job.id] = currentTime;
+    actualStartTimes[job.id] = currentTime
 
     // Merge adjacent free slots
-    mergeAdjacentFreeSlots();
+    mergeAdjacentFreeSlots()
 
     // Update memory visualization
-    updateMemoryVisualization();
-    updateMemoryStats();
+    updateMemoryVisualization()
+    updateMemoryStats()
 
-    logEvent(`${job.id} (${job.size}KB) allocated memory`);
-    return true;
-}
+    logEvent(`${job.id} (${job.size}KB) allocated memory`)
+    return true
+  }
 
   // Deallocate memory for a job
   function deallocateJob(job) {
@@ -948,7 +970,6 @@ document.addEventListener("DOMContentLoaded", () => {
         jobPositions[slot.jobId] = index + 1 // +1 because OS kernel is at position 0
       }
     })
-
   }
 
   // Run a single simulation step
