@@ -750,6 +750,32 @@ button::after,
   }
 }
 
+/* Add missing animation for loader */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Add styles for job status */
+.status-cell.running {
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.status-cell.finished {
+  color: var(--success-color);
+  font-weight: bold;
+}
+
+.status-cell.rejected {
+  color: var(--danger-color);
+  font-weight: bold;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .memory-log-wrapper {
@@ -770,4 +796,3 @@ button::after,
     width: 100%;
   }
 }
-

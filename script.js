@@ -1,12 +1,16 @@
+// Wait for the page to fully load before initializing
 window.addEventListener("load", () => {
+  // Hide the loading overlay once the page is loaded
   const loadingOverlay = document.getElementById("loadingOverlay")
   if (loadingOverlay) {
     loadingOverlay.style.display = "none"
   }
 })
 
+// Initialize the application when the DOM content is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  // DOM Elements
+  // ===== DOM Element References =====
+  // Get references to all the UI elements we'll need to interact with
   const totalMemoryInput = document.getElementById("totalMemory")
   const numJobsInput = document.getElementById("numJobs")
   const generateTableBtn = document.getElementById("generateTableBtn")
@@ -21,8 +25,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const eventLogElement = document.getElementById("eventLog")
   const visualizationContainer = document.querySelector(".visualization-container")
 
-  // Constants
-  const OS_KERNEL_SIZE = 10 // KB
+  // ===== Constants =====
+  // Define fixed values used throughout the simulation
+  const OS_KERNEL_SIZE = 10 // Size of OS kernel in KB (always reserved)
+  // Color palette for visualizing different jobs in memory
   const COLOR_PALETTE = [
     "#00FFFF",
     "#FF00FF",
@@ -41,51 +47,46 @@ document.addEventListener("DOMContentLoaded", () => {
     "#FF0088",
   ]
 
-  // State variables
-  let jobs = []
-  let memorySlots = []
-  let totalMemory = 0
-  let timer = null
-  let currentTime = 0
-  let simulationRunning = false
-  let simulationPaused = false
-  let speedMultiplier = 1 // Default speed
-  let jobPositions = {} // To track job positions for animation
-  let rejectedJobs = new Set() // Track jobs that have been rejected due to size
-  let actualStartTimes = {} // Track when jobs actually start running
-  let lastLoggedTime = -1 // Track the last time we logged running jobs
+  // ===== State Variables =====
+  // Variables that track the current state of the simulation
+  let jobs = [] // Array of job objects
+  let memorySlots = [] // Array representing memory allocation
+  let totalMemory = 0 // Total memory size in KB
+  let timer = null // Timer for simulation updates
+  let currentTime = 0 // Current simulation time in ms
+  let simulationRunning = false // Is simulation currently running?
+  let simulationPaused = false // Is simulation paused?
+  let speedMultiplier = 1 // Speed control for simulation
+  let jobPositions = {} // Tracks job positions for animation
+  let rejectedJobs = new Set() // Jobs rejected due to size constraints
+  let actualStartTimes = {} // When jobs actually start running
+  let lastLoggedTime = -1 // Last time we logged running jobs
 
-  // Initialize the application
+  // ===== Initialization Function =====
+  // Set up the application when it first loads
   function init() {
+    // Set up event listeners
     generateTableBtn.addEventListener("click", generateJobTable)
     startSimulationBtn.addEventListener("click", startSimulation)
     resetSimulationBtn.addEventListener("click", resetSimulation)
     document.getElementById("pauseSimulation").addEventListener("click", togglePause)
 
-    // Create and add speed control to stats bar
     createSpeedControlInStatsBar()
-
-    // Set minimum total memory to account for OS kernel
     totalMemoryInput.min = OS_KERNEL_SIZE + 10
-
-    // Update memory stats initially
     updateMemoryStats()
   }
 
-  // Create speed control in stats bar
+  // ===== Speed Control Creation =====
+  // Creates a slider to control simulation speed
   function createSpeedControlInStatsBar() {
     const statsBar = document.querySelector(".stats-bar")
-
-    // Create speed control container
     const speedControlContainer = document.createElement("div")
     speedControlContainer.classList.add("speed-control")
 
-    // Create speed label
     const speedLabel = document.createElement("label")
     speedLabel.textContent = "Speed: "
     speedLabel.setAttribute("for", "speedControl")
 
-    // Create speed slider
     const speedSlider = document.createElement("input")
     speedSlider.type = "range"
     speedSlider.id = "speedControl"
@@ -94,49 +95,42 @@ document.addEventListener("DOMContentLoaded", () => {
     speedSlider.step = "0.1"
     speedSlider.value = "1"
 
-    // Create speed value display
     const speedValue = document.createElement("span")
     speedValue.id = "speedValue"
     speedValue.textContent = "1x"
 
-    // Add event listener to speed slider
+    // Update speed when slider changes
     speedSlider.addEventListener("input", function () {
       speedMultiplier = Number.parseFloat(this.value)
       speedValue.textContent = speedMultiplier + "x"
 
-      // If simulation is running, restart it with new speed
       if (simulationRunning && !simulationPaused) {
         clearInterval(timer)
         timer = setInterval(updateSimulation, 100 / speedMultiplier)
       }
     })
 
-    // Append elements to speed control container
     speedControlContainer.appendChild(speedLabel)
     speedControlContainer.appendChild(speedSlider)
     speedControlContainer.appendChild(speedValue)
-
-    // Insert speed control at the end of the stats bar
     statsBar.appendChild(speedControlContainer)
   }
 
-  // Toggle pause/resume simulation
+  // ===== Pause/Resume Control =====
+  // Toggles between paused and running states
   function togglePause() {
     const pauseButton = document.getElementById("pauseSimulation")
-
-    if (!simulationRunning) {
-      return
-    }
+    if (!simulationRunning) return
 
     if (simulationPaused) {
-      // Resume simulation
+      // Resume the simulation
       simulationPaused = false
       pauseButton.textContent = "Pause"
       pauseButton.classList.remove("resume")
       timer = setInterval(updateSimulation, 100 / speedMultiplier)
       logEvent("Simulation resumed")
     } else {
-      // Pause simulation
+      // Pause the simulation
       simulationPaused = true
       pauseButton.textContent = "Resume"
       pauseButton.classList.add("resume")
@@ -145,32 +139,33 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Generate the job table based on user input
+  // ===== Job Table Generation =====
+  // Creates the table of jobs based on user input
   function generateJobTable() {
     const numJobs = Number.parseInt(numJobsInput.value)
     totalMemory = Number.parseInt(totalMemoryInput.value)
 
-    // Check if numJobs is a number and greater than 0
+    // Validate inputs
     if (isNaN(numJobs) || numJobs <= 0) {
       alert("Please enter a valid number of jobs (greater than 0).")
-      numJobsInput.focus() // Focus the input box for correction
+      numJobsInput.focus()
       return
     }
 
-    // Check if totalMemory is a number and valid
     if (isNaN(totalMemory) || totalMemory < OS_KERNEL_SIZE + 10) {
       alert("Total memory must be at least " + (OS_KERNEL_SIZE + 10) + " KB.")
-      totalMemoryInput.focus() // Focus the input box for correction
+      totalMemoryInput.focus()
       return
     }
 
-    // Initialize jobs array
+    // Initialize tracking variables
     jobs = []
-    jobPositions = {} // Reset job positions
-    rejectedJobs = new Set() // Reset rejected jobs
-    actualStartTimes = {} // Reset actual start times
-    lastLoggedTime = -1 // Reset last logged time
+    jobPositions = {}
+    rejectedJobs = new Set()
+    actualStartTimes = {}
+    lastLoggedTime = -1
 
+    // Create job objects with default values
     for (let i = 0; i < numJobs; i++) {
       const jobId = "Job-" + (i + 1)
       jobs.push({
@@ -182,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
         position: -1,
         color: COLOR_PALETTE[i % COLOR_PALETTE.length],
       })
-      jobPositions[jobId] = -1 // Initialize position tracking
+      jobPositions[jobId] = -1
     }
 
     renderJobTable()
@@ -195,7 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateMemoryStats()
     logEvent("System initialized with " + totalMemory + " KB memory and " + numJobs + " jobs")
 
-    // Automatically focus the first job's size cell after generating the table
+    // Focus first cell for editing
     setTimeout(() => {
       const firstSizeCell = document.querySelector('td[data-field="size"][data-index="0"]')
       if (firstSizeCell) {
@@ -204,24 +199,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 0)
   }
 
-  // Render the job table
+  // ===== Job Table Rendering =====
+  // Updates the job table in the UI
   function renderJobTable() {
     jobTableBody.innerHTML = ""
 
     jobs.forEach((job, index) => {
       const row = document.createElement("tr")
-
-      // Add class for rejected jobs
       if (rejectedJobs.has(job.id)) {
         row.classList.add("rejected-job")
       }
 
-      // Job ID (not editable)
+      // Job ID cell (not editable)
       const idCell = document.createElement("td")
       idCell.textContent = job.id
       row.appendChild(idCell)
 
-      // Job Size (editable, with "KB" display)
+      // Job Size cell (editable)
       const sizeCell = document.createElement("td")
       sizeCell.textContent = `${job.size} KB`
       sizeCell.classList.add("editable")
@@ -230,7 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sizeCell.addEventListener("click", editCell)
       row.appendChild(sizeCell)
 
-      // Loading Time (editable, with "msec" display)
+      // Loading Time cell (editable)
       const loadingTimeCell = document.createElement("td")
       loadingTimeCell.textContent = `${job.loadingTime} msec`
       loadingTimeCell.classList.add("editable")
@@ -239,7 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
       loadingTimeCell.addEventListener("click", editCell)
       row.appendChild(loadingTimeCell)
 
-      // Finish Time (editable, with "msec" display)
+      // Finish Time cell (editable)
       const finishTimeCell = document.createElement("td")
       finishTimeCell.textContent = `${job.finishTime} msec`
       finishTimeCell.classList.add("editable")
@@ -248,10 +242,11 @@ document.addEventListener("DOMContentLoaded", () => {
       finishTimeCell.addEventListener("click", editCell)
       row.appendChild(finishTimeCell)
 
-      // Status column (new)
+      // Status column (not editable)
       const statusCell = document.createElement("td")
       statusCell.textContent = rejectedJobs.has(job.id) ? "Rejected" : job.status
       statusCell.classList.add("status-cell")
+
       if (rejectedJobs.has(job.id)) {
         statusCell.classList.add("rejected")
       } else if (job.status === "running") {
@@ -265,8 +260,10 @@ document.addEventListener("DOMContentLoaded", () => {
     })
   }
 
-  // Make a cell editable
+  // ===== Cell Editing =====
+  // Makes a table cell editable when clicked
   function editCell(event) {
+    // Prevent editing during simulation
     if (simulationRunning) return
 
     const cell = event.target
@@ -277,17 +274,18 @@ document.addEventListener("DOMContentLoaded", () => {
     input.type = "number"
     input.value = jobs[index][field]
     input.style.width = "100%"
-    input.autofocus = true // Add this to automatically focus the input
+    input.autofocus = true
 
     cell.textContent = ""
     cell.appendChild(input)
     input.focus()
 
+    // Handle input blur (when user clicks away)
     input.addEventListener("blur", () => {
       const value = Number.parseInt(input.value)
       let isValid = true
 
-      // Validation rules
+      // Validate input
       if (isNaN(value)) {
         isValid = false
         input.value = ""
@@ -307,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return
       }
 
-      // Valid input
+      // Update job data
       jobs[index][field] = value
       const unit = field === "size" ? "KB" : "msec"
       cell.textContent = `${value} ${unit}`
@@ -319,12 +317,13 @@ document.addEventListener("DOMContentLoaded", () => {
       input.classList.remove("invalid")
     })
 
+    // Handle Enter key press
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         const value = Number.parseInt(input.value)
         let isValid = true
 
-        // Same validation as blur
+        // Validate input
         if (isNaN(value)) {
           isValid = false
           input.value = ""
@@ -344,39 +343,36 @@ document.addEventListener("DOMContentLoaded", () => {
           return
         }
 
-        // If valid, update the value
+        // Update job data
         jobs[index][field] = value
         const unit = field === "size" ? "KB" : "msec"
         cell.textContent = `${value} ${unit}`
         cell.addEventListener("click", editCell)
 
-        // Check if this is the last cell (finish time of the last job)
+        // Move to next cell
         if (field === "finishTime" && index === jobs.length - 1) {
-          input.blur() // Remove focus
+          input.blur() // Remove focus if this is the last cell
         } else {
-          // Move to the next cell
+          // Determine next cell to focus
           const nextFieldOrder = ["size", "loadingTime", "finishTime"]
           const currentFieldIndex = nextFieldOrder.indexOf(field)
           let nextFieldIndex = currentFieldIndex + 1
           let nextRowIndex = index
 
-          // If we're at the last field, move to next job's first field
           if (nextFieldIndex >= nextFieldOrder.length) {
             nextFieldIndex = 0
             nextRowIndex = index + 1
           }
 
-          // If we're at the last job, wrap around to first job
           if (nextRowIndex >= jobs.length) {
             nextRowIndex = 0
           }
 
-          // Find the next cell to focus
           const nextCell = document.querySelector(
             `td[data-field="${nextFieldOrder[nextFieldIndex]}"][data-index="${nextRowIndex}"]`,
           )
           if (nextCell) {
-            nextCell.click() // Trigger edit on next cell
+            nextCell.click()
           }
         }
       }
@@ -385,11 +381,11 @@ document.addEventListener("DOMContentLoaded", () => {
     cell.removeEventListener("click", editCell)
   }
 
-  // Initialize memory visualization
+  // ===== Memory Visualization Initialization =====
+  // Sets up the initial memory visualization
   function initMemoryVisualization() {
     memoryVisualizationElement.innerHTML = ""
 
-    // Create memory slots container
     const memorySlotsContainer = document.createElement("div")
     memorySlotsContainer.style.width = "100%"
     memorySlotsContainer.style.position = "relative"
@@ -397,7 +393,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Create OS kernel slot
     const osKernelSlot = document.createElement("div")
     osKernelSlot.classList.add("memory-slot", "os-kernel")
-    osKernelSlot.style.height = `${(OS_KERNEL_SIZE / totalMemory) * 500}px` // Scale to 500px
+    osKernelSlot.style.height = `${(OS_KERNEL_SIZE / totalMemory) * 500}px`
     osKernelSlot.textContent = "OS Kernel"
     memorySlotsContainer.appendChild(osKernelSlot)
 
@@ -408,19 +404,19 @@ document.addEventListener("DOMContentLoaded", () => {
     freeSpaceSlot.textContent = "Free Space"
     memorySlotsContainer.appendChild(freeSpaceSlot)
 
-    // Add the slots container to memory visualization
     memoryVisualizationElement.appendChild(memorySlotsContainer)
 
-    // Initialize memory slots
+    // Initialize memory slots data structure
     memorySlots = [
       { type: "os", size: OS_KERNEL_SIZE, jobId: null },
       { type: "free", size: totalMemory - OS_KERNEL_SIZE, jobId: null },
     ]
   }
 
-  // Ensure all free memory spaces are at the bottom
+  // ===== Memory Management: Bubble Free Spaces =====
+  // Ensures all free memory spaces are consolidated at the bottom
   function bubbleFreeSpaces() {
-    // First, collect all slots by type
+    // Collect slots by type
     const osSlot = memorySlots.find((slot) => slot.type === "os")
     const jobSlots = memorySlots.filter((slot) => slot.type === "job")
     const freeSlots = memorySlots.filter((slot) => slot.type === "free")
@@ -448,7 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
 
-    // Add a single consolidated free slot at the end if there's any free memory
+    // Add consolidated free slot at the end
     if (totalFreeMemory > 0) {
       newMemorySlots.push({
         type: "free",
@@ -457,15 +453,15 @@ document.addEventListener("DOMContentLoaded", () => {
       })
     }
 
-    // Replace memory slots
     memorySlots = newMemorySlots
   }
 
-  // Update memory visualization with animation
+  // ===== Memory Visualization Update =====
+  // Updates the visual representation of memory
   function updateMemoryVisualization() {
     bubbleFreeSpaces()
-
     memoryVisualizationElement.innerHTML = ""
+
     const container = document.createElement("div")
     container.style.width = "100%"
 
@@ -473,7 +469,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const slotElement = document.createElement("div")
       slotElement.classList.add("memory-slot")
 
-      const heightPercentage = (slot.size / totalMemory) * 500 // Scale to 500px
+      // Calculate height based on proportion of total memory
+      const heightPercentage = (slot.size / totalMemory) * 500
       slotElement.style.height = `${heightPercentage}px`
       slotElement.style.width = "100%"
 
@@ -486,11 +483,11 @@ document.addEventListener("DOMContentLoaded", () => {
         slotElement.style.backgroundColor = job.color
         slotElement.textContent = `${job.id} (${slot.size}KB)`
 
-        // Add swap animation if the job has moved
+        // Add animation if job has moved
         if (jobPositions[job.id] !== undefined && jobPositions[job.id] !== index) {
           slotElement.classList.add("job-swap")
         }
-        jobPositions[job.id] = index // Update position
+        jobPositions[job.id] = index
       } else {
         slotElement.classList.add("free-space")
         slotElement.textContent = `Free (${slot.size}KB)`
@@ -502,12 +499,13 @@ document.addEventListener("DOMContentLoaded", () => {
     memoryVisualizationElement.appendChild(container)
   }
 
-  // Update memory statistics
+  // ===== Memory Statistics Update =====
+  // Updates the memory usage statistics display
   function updateMemoryStats() {
     memoryTotalElement.textContent = totalMemory
 
+    // Calculate used memory
     let usedMemory = OS_KERNEL_SIZE
-
     if (memorySlots.length > 0) {
       usedMemory = memorySlots.reduce((acc, slot) => {
         return acc + (slot.type !== "free" ? slot.size : 0)
@@ -515,12 +513,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const freeMemory = totalMemory - usedMemory
-
     memoryUsedElement.textContent = usedMemory
     memoryFreeElement.textContent = freeMemory
   }
 
-  // Log an event
+  // ===== Event Logging =====
+  // Adds an event to the event log
   function logEvent(message) {
     const timeStamp = currentTime
     const logEntry = document.createElement("div")
@@ -529,27 +527,25 @@ document.addEventListener("DOMContentLoaded", () => {
     eventLogElement.prepend(logEntry)
   }
 
-  // Log the status of all running jobs
+  // ===== Running Jobs Logging =====
+  // Logs the status of all currently running jobs
   function logRunningJobs() {
     if (currentTime !== lastLoggedTime) {
       lastLoggedTime = currentTime
-
-      // Get all running jobs
       const runningJobs = jobs.filter((job) => job.status === "running")
 
       if (runningJobs.length > 0) {
-        // Create a message with all running jobs
         const jobsList = runningJobs.map((job) => job.id).join(", ")
         logEvent(`${jobsList} - running`)
       }
     }
   }
 
-  // Function to validate the job inputs are valid before starting simulation
+  // ===== Job Input Validation =====
+  // Validates that all job parameters are valid before simulation
   function validateJobInputs() {
     let isValid = true
 
-    // Check each job has valid parameters
     for (let i = 0; i < jobs.length; i++) {
       const job = jobs[i]
 
@@ -577,28 +573,28 @@ document.addEventListener("DOMContentLoaded", () => {
     return isValid
   }
 
-  // Check if a job is too large to ever fit in memory
+  // ===== Job Size Check =====
+  // Checks if a job is too large to ever fit in memory
   function isJobTooLarge(job) {
-    // Maximum available memory is total memory minus OS kernel
     const maxAvailableMemory = totalMemory - OS_KERNEL_SIZE
     return job.size > maxAvailableMemory
   }
 
-  // Start the simulation
+  // ===== Simulation Start =====
+  // Starts the simulation
   function startSimulation() {
     if (!validateJobInputs()) return
-
     if (simulationRunning) return
 
     simulationRunning = true
     simulationPaused = false
-    lastLoggedTime = -1 // Reset last logged time
+    lastLoggedTime = -1
 
     startSimulationBtn.disabled = true
     generateTableBtn.disabled = true
     document.getElementById("pauseSimulation").disabled = false
 
-    // Check for jobs that are too large before starting
+    // Check for jobs that are too large
     jobs.forEach((job) => {
       if (isJobTooLarge(job)) {
         rejectedJobs.add(job.id)
@@ -607,77 +603,60 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
 
-    // Update the job table to show rejected jobs
     renderJobTable()
-
-    // Add a cool transition effect
     document.querySelector(".container").classList.add("simulation-start")
+
     setTimeout(() => {
       logEvent("Simulation started")
-
-      // Process jobs immediately to handle jobs with 0ms loading time
       processJobs()
-
-      // Initialize the timer with the current speedMultiplier
       timer = setInterval(updateSimulation, 100 / speedMultiplier)
-
       runSimulationStep()
 
-      // Scroll to visualization container with smooth animation
+      // Scroll to visualization
       if (visualizationContainer) {
         visualizationContainer.scrollIntoView({
           behavior: "smooth",
           block: "start",
         })
 
-        // Add highlight animation to visualization container
         visualizationContainer.classList.add("highlight-container")
-
-        // Remove highlight class after animation completes
         setTimeout(() => {
           visualizationContainer.classList.remove("highlight-container")
         }, 2000)
       }
-    }, 1000) // Delay to match the animation
+    }, 1000)
   }
 
-  // Reset the simulation
+  // ===== Simulation Reset =====
+  // Resets the simulation to initial state
   function resetSimulation() {
-    // Stop timer if running
     if (timer) {
       clearInterval(timer)
       timer = null
     }
 
-    // Reset time
     currentTime = 0
     timerElement.textContent = "0 ms"
-
-    // Clear event log
     eventLogElement.innerHTML = ""
 
-    // Reset job statuses and positions
+    // Reset job statuses
     jobs.forEach((job) => {
       job.status = "waiting"
       job.position = -1
     })
 
-    // Reset job position tracking
+    // Reset tracking variables
     jobPositions = {}
     jobs.forEach((job) => {
       jobPositions[job.id] = -1
     })
-
-    // Reset rejected jobs and actual start times
     rejectedJobs = new Set()
     actualStartTimes = {}
-    lastLoggedTime = -1 // Reset last logged time
+    lastLoggedTime = -1
 
-    // Reset memory visualization
     initMemoryVisualization()
     updateMemoryStats()
 
-    // Reset button states
     simulationRunning = false
     simulationPaused = false
     startSimulationBtn.disabled = false
@@ -686,13 +665,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("pauseSimulation").textContent = "Pause"
     document.getElementById("pauseSimulation").classList.remove("resume")
 
-    // Update the job table
     renderJobTable()
-
     logEvent("Simulation reset")
   }
 
-  // Update the simulation state
+  // ===== Simulation Update =====
+  // Updates the simulation state for each time step
   function updateSimulation() {
     currentTime += 1
     timerElement.textContent = `${currentTime} ms`
@@ -700,14 +678,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Capture job statuses before update
     const previousStatuses = jobs.map((j) => j.status)
 
-    processJobs() // May change job statuses
+    processJobs()
 
-    // Detect changes and log events
+    // Detect status changes and log events
     jobs.forEach((job, index) => {
       const prevStatus = previousStatuses[index]
       if (prevStatus !== job.status) {
         if (job.status === "running") {
-          // Record the actual start time when a job starts running
           actualStartTimes[job.id] = currentTime
           logEvent(`${job.id} loaded at ${currentTime} ms`)
         } else if (job.status === "finished") {
@@ -716,13 +693,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
 
-    // Log running jobs at each millisecond
     logRunningJobs()
-
-    // Update the job table to reflect current statuses
     renderJobTable()
 
-    // End simulation if all jobs are finished or rejected
+    // Check if simulation should end
     const allProcessed = jobs.every((job) => job.status === "finished" || rejectedJobs.has(job.id))
     if (allProcessed) {
       clearTimeout(timer)
@@ -734,14 +708,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Process waiting jobs based on their status and time
+  // ===== Job Processing =====
+  // Processes jobs based on their status and current time
   function processJobs() {
-    // Process waiting jobs that should start loading
+    // Find waiting jobs that should start loading now
     const waitingJobs = jobs.filter(
       (job) => job.status === "waiting" && currentTime >= job.loadingTime && !rejectedJobs.has(job.id),
     )
 
-    // Sort waiting jobs by priority: loading time, then job ID (number)
+    // Sort waiting jobs by priority
     waitingJobs.sort((a, b) => {
       if (a.loadingTime !== b.loadingTime) return a.loadingTime - b.loadingTime
       const aNum = Number.parseInt(a.id.split("-")[1])
@@ -749,24 +724,22 @@ document.addEventListener("DOMContentLoaded", () => {
       return aNum - bNum
     })
 
-    // Process running jobs that should finish
+    // Process running jobs that should finish now
     jobs.forEach((job) => {
       if (job.status === "running") {
         const startTime = actualStartTimes[job.id] || job.loadingTime
         if (currentTime >= startTime + job.finishTime) {
           deallocateJob(job)
 
-          // Immediately try to allocate memory for waiting jobs after deallocation
+          // Try to allocate memory for waiting jobs
           waitingJobs.forEach((waitingJob) => {
             if (waitingJob.status === "waiting") {
               const wasAllocated = tryAllocateJob(waitingJob)
 
-              // Log the event if the job is still waiting due to insufficient memory
               if (!wasAllocated && waitingJob.status === "waiting") {
                 logEvent(`${waitingJob.id} (${waitingJob.size}KB) insufficient memory - waiting`)
               }
 
-              // Log the event immediately when the job starts running
               if (waitingJob.status === "running" && currentTime === waitingJob.loadingTime) {
                 logEvent(`${waitingJob.id} loaded at ${currentTime} ms`)
               }
@@ -776,7 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
 
-    // Process waiting jobs that couldn't be allocated earlier
+    // Process waiting jobs
     waitingJobs.forEach((job) => {
       if (isJobTooLarge(job)) {
         rejectedJobs.add(job.id)
@@ -785,12 +758,10 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         const wasAllocated = tryAllocateJob(job)
 
-        // Log the event if the job is still waiting due to insufficient memory
         if (!wasAllocated && job.status === "waiting") {
           logEvent(`${job.id} (${job.size}KB) insufficient memory - waiting`)
         }
 
-        // Log the event immediately when the job starts running
         if (job.status === "running" && currentTime === job.loadingTime) {
           logEvent(`${job.id} loaded at ${currentTime} ms`)
         }
@@ -798,17 +769,15 @@ document.addEventListener("DOMContentLoaded", () => {
     })
   }
 
-  // Try to allocate memory for a job
+  // ===== Memory Allocation =====
+  // Tries to allocate memory for a job
   function tryAllocateJob(job) {
-    // Skip rejected jobs
     if (rejectedJobs.has(job.id)) return false
 
-    // First, compact memory to ensure all jobs are at the top
     compactMemory()
 
     // Find a suitable free memory slot
     let freeSlotIndex = -1
-
     for (let i = 0; i < memorySlots.length; i++) {
       if (memorySlots[i].type === "free" && memorySlots[i].size >= job.size) {
         freeSlotIndex = i
@@ -817,39 +786,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (freeSlotIndex === -1) {
-      // If no suitable slot, the job remains waiting
       return false
     }
 
-    // Allocate memory for the job
     const freeSlot = memorySlots[freeSlotIndex]
-
-    // Create new job slot
     const jobSlot = {
       type: "job",
       size: job.size,
       jobId: job.id,
     }
 
-    // If we're splitting a free slot
+    // Handle splitting free slot if needed
     if (freeSlot.size > job.size) {
-      // Create a new free slot with remaining size
       const newFreeSlot = {
         type: "free",
         size: freeSlot.size - job.size,
         jobId: null,
       }
 
-      // Remove the original free slot
       memorySlots.splice(freeSlotIndex, 1)
-
-      // Insert the job at the correct position
       memorySlots.splice(freeSlotIndex, 0, jobSlot)
-
-      // Add the free slot at the end
       memorySlots.push(newFreeSlot)
     } else {
-      // If exact size match, remove the free slot and insert the job
       memorySlots.splice(freeSlotIndex, 1)
       memorySlots.splice(freeSlotIndex, 0, jobSlot)
     }
@@ -857,15 +815,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Update job status
     job.status = "running"
     job.position = freeSlotIndex
-    jobPositions[job.id] = freeSlotIndex // Update position for animation
-
-    // Record the actual start time
+    jobPositions[job.id] = freeSlotIndex
     actualStartTimes[job.id] = currentTime
 
-    // Merge adjacent free slots
     mergeAdjacentFreeSlots()
-
-    // Update memory visualization
     updateMemoryVisualization()
     updateMemoryStats()
 
@@ -873,31 +826,24 @@ document.addEventListener("DOMContentLoaded", () => {
     return true
   }
 
-  // Deallocate memory for a job
+  // ===== Memory Deallocation =====
+  // Deallocates memory for a job that has finished
   function deallocateJob(job) {
-    // Find job in memory slots
     const jobSlotIndex = memorySlots.findIndex((slot) => slot.type === "job" && slot.jobId === job.id)
 
     if (jobSlotIndex !== -1) {
-      // Remove the job slot
       memorySlots.splice(jobSlotIndex, 1)
-
-      // Add a new free slot at the end
       memorySlots.push({
         type: "free",
         size: job.size,
         jobId: null,
       })
 
-      // Update job status
       job.status = "finished"
       job.position = -1
-      jobPositions[job.id] = -1 // Update position for animation
+      jobPositions[job.id] = -1
 
-      // Merge adjacent free slots
       mergeAdjacentFreeSlots()
-
-      // Update memory visualization
       updateMemoryVisualization()
       updateMemoryStats()
 
@@ -905,7 +851,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Merge all free memory slots into one at the bottom
+  // ===== Memory Management: Merge Free Slots =====
+  // Merges all free memory slots into one at the bottom
   function mergeAdjacentFreeSlots() {
     // Calculate total free memory
     const freeSlots = memorySlots.filter((slot) => slot.type === "free")
@@ -914,7 +861,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Remove all free slots
     memorySlots = memorySlots.filter((slot) => slot.type !== "free")
 
-    // Add a single consolidated free slot at the end if there's any free memory
+    // Add a single consolidated free slot
     if (totalFreeMemory > 0) {
       memorySlots.push({
         type: "free",
@@ -924,9 +871,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Compact memory (relocate all jobs to remove fragmentation)
+  // ===== Memory Compaction =====
+  // Relocates all jobs to remove fragmentation
   function compactMemory() {
-    // Skip if there are no jobs in memory
     const jobSlots = memorySlots.filter((slot) => slot.type === "job")
     if (jobSlots.length === 0) return
 
@@ -948,11 +895,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
 
-    // Calculate total used memory
+    // Calculate free space
     const usedMemory = OS_KERNEL_SIZE + jobSlots.reduce((acc, slot) => acc + slot.size, 0)
     const freeSize = totalMemory - usedMemory
 
-    // Add remaining space as a single free slot at the end
+    // Add remaining space as a single free slot
     if (freeSize > 0) {
       newMemorySlots.push({
         type: "free",
@@ -972,7 +919,8 @@ document.addEventListener("DOMContentLoaded", () => {
     })
   }
 
-  // Run a single simulation step
+  // ===== Simulation Step =====
+  // Runs a single simulation step
   function runSimulationStep() {
     if (!simulationRunning) return
 
@@ -984,3 +932,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize the application
   init()
 })
+
+// Log to console that the script has loaded
+console.log("Memory Management Simulator script loaded and ready")
