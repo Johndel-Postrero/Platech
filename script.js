@@ -7,6 +7,208 @@ window.addEventListener("load", () => {
   }
 })
 
+// Replace the entire SoundManager object with this improved version
+const SoundManager = {
+  audioContext: null,
+  sounds: {},
+  muted: false,
+
+  init() {
+    // Create audio context on first user interaction to comply with browser policies
+    const initAudioContext = () => {
+      if (!this.audioContext) {
+        try {
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
+          console.log("Audio context initialized")
+
+          // Resume audio context (needed for some browsers)
+          if (this.audioContext.state === "suspended") {
+            this.audioContext.resume().then(() => {
+              console.log("AudioContext resumed successfully")
+            })
+          }
+        } catch (e) {
+          console.error("Failed to create audio context:", e)
+        }
+      }
+    }
+
+    // Initialize audio context on first user interaction
+    document.addEventListener("click", initAudioContext, { once: true })
+    document.addEventListener("keydown", initAudioContext, { once: true })
+
+    // Add mute toggle button to the stats bar
+    this.addMuteToggle()
+
+    console.log("Sound Manager initialized")
+  },
+
+  // Add mute toggle button to the stats bar
+  addMuteToggle() {
+    const statsBar = document.querySelector(".stats-bar")
+    if (!statsBar) return
+
+    const muteContainer = document.createElement("div")
+    muteContainer.classList.add("mute-container")
+    muteContainer.style.marginLeft = "15px"
+
+    const muteButton = document.createElement("button")
+    muteButton.id = "muteToggle"
+    muteButton.innerHTML = "🔊"
+    muteButton.title = "Mute/Unmute Sounds"
+    muteButton.style.background = "none"
+    muteButton.style.border = "none"
+    muteButton.style.fontSize = "20px"
+    muteButton.style.cursor = "pointer"
+    muteButton.style.color = "var(--primary-color)"
+    muteButton.style.padding = "5px"
+    muteButton.style.borderRadius = "4px"
+    muteButton.style.transition = "all 0.3s"
+
+    muteButton.addEventListener("click", () => {
+      this.muted = !this.muted
+      muteButton.innerHTML = this.muted ? "🔇" : "🔊"
+      muteButton.title = this.muted ? "Unmute Sounds" : "Mute Sounds"
+
+      // Play a test sound when unmuting
+      if (!this.muted) {
+        this.play("click")
+      }
+    })
+
+    muteContainer.appendChild(muteButton)
+    statsBar.appendChild(muteContainer)
+  },
+
+  // Play a sound by type
+  play(soundType) {
+    if (this.muted || !this.audioContext) return
+
+    try {
+      // Create oscillator and gain nodes
+      const oscillator = this.audioContext.createOscillator()
+      const gainNode = this.audioContext.createGain()
+
+      // Connect nodes
+      oscillator.connect(gainNode)
+      gainNode.connect(this.audioContext.destination)
+
+      // Configure sound based on type
+      switch (soundType) {
+        case "click":
+          oscillator.type = "sine"
+          oscillator.frequency.value = 800
+          gainNode.gain.value = 0.2
+          oscillator.start()
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.1)
+          oscillator.stop(this.audioContext.currentTime + 0.1)
+          break
+
+        case "start":
+          oscillator.type = "sine"
+          oscillator.frequency.setValueAtTime(300, this.audioContext.currentTime)
+          oscillator.frequency.exponentialRampToValueAtTime(900, this.audioContext.currentTime + 0.5)
+          gainNode.gain.value = 0.3
+          oscillator.start()
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5)
+          oscillator.stop(this.audioContext.currentTime + 0.5)
+          break
+
+        case "allocate":
+          oscillator.type = "sine"
+          oscillator.frequency.value = 600
+          gainNode.gain.value = 0.2
+          oscillator.start()
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.15)
+          oscillator.stop(this.audioContext.currentTime + 0.15)
+          break
+
+        case "deallocate":
+          oscillator.type = "sine"
+          oscillator.frequency.setValueAtTime(500, this.audioContext.currentTime)
+          oscillator.frequency.exponentialRampToValueAtTime(300, this.audioContext.currentTime + 0.2)
+          gainNode.gain.value = 0.2
+          oscillator.start()
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.2)
+          oscillator.stop(this.audioContext.currentTime + 0.2)
+          break
+
+        case "error":
+          oscillator.type = "sine"
+          oscillator.frequency.value = 200
+          gainNode.gain.value = 0.2
+          oscillator.start()
+
+          // Schedule frequency change for two-tone effect
+          setTimeout(() => {
+            oscillator.frequency.value = 150
+          }, 150)
+
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.4)
+          oscillator.stop(this.audioContext.currentTime + 0.4)
+          break
+
+        case "complete":
+          // Create first tone
+          oscillator.type = "sine"
+          oscillator.frequency.value = 400
+          gainNode.gain.value = 0.2
+          oscillator.start()
+
+          // Schedule frequency changes for arpeggio effect
+          setTimeout(() => {
+            oscillator.frequency.value = 600
+          }, 100)
+
+          setTimeout(() => {
+            oscillator.frequency.value = 800
+          }, 200)
+
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5)
+          oscillator.stop(this.audioContext.currentTime + 0.5)
+          break
+
+        case "pause":
+          oscillator.type = "sine"
+          oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime)
+          oscillator.frequency.exponentialRampToValueAtTime(400, this.audioContext.currentTime + 0.2)
+          gainNode.gain.value = 0.2
+          oscillator.start()
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.2)
+          oscillator.stop(this.audioContext.currentTime + 0.2)
+          break
+
+        case "resume":
+          oscillator.type = "sine"
+          oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime)
+          oscillator.frequency.exponentialRampToValueAtTime(600, this.audioContext.currentTime + 0.2)
+          gainNode.gain.value = 0.2
+          oscillator.start()
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.2)
+          oscillator.stop(this.audioContext.currentTime + 0.2)
+          break
+
+        case "buttonHover":
+          oscillator.type = "sine"
+          oscillator.frequency.value = 2000
+          gainNode.gain.value = 0.05
+          oscillator.start()
+          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.05)
+          oscillator.stop(this.audioContext.currentTime + 0.05)
+          break
+
+        default:
+          console.warn("Unknown sound type:", soundType)
+          return
+      }
+
+      console.log(`Playing sound: ${soundType}`)
+    } catch (e) {
+      console.error("Error playing sound:", e)
+    }
+  },
+}
+
 // Initialize the application when the DOM content is loaded
 document.addEventListener("DOMContentLoaded", () => {
   // ===== DOM Element References =====
@@ -24,6 +226,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const memoryFreeElement = document.getElementById("memoryFree")
   const eventLogElement = document.getElementById("eventLog")
   const visualizationContainer = document.querySelector(".visualization-container")
+
+  // Initialize sound manager
+  SoundManager.init()
 
   // ===== Constants =====
   // Define fixed values used throughout the simulation
@@ -71,9 +276,27 @@ document.addEventListener("DOMContentLoaded", () => {
     resetSimulationBtn.addEventListener("click", resetSimulation)
     document.getElementById("pauseSimulation").addEventListener("click", togglePause)
 
+    // Add hover sound effects to buttons
+    addButtonSoundEffects()
+
+    // Add debug sound test button
+
     createSpeedControlInStatsBar()
     totalMemoryInput.min = OS_KERNEL_SIZE + 10
     updateMemoryStats()
+  }
+
+
+  // Add hover sound effects to all buttons
+  function addButtonSoundEffects() {
+    const buttons = document.querySelectorAll("button")
+    buttons.forEach((button) => {
+      button.addEventListener("mouseenter", () => {
+        SoundManager.play("buttonHover")
+      })
+
+      // Don't add click sounds here - we'll add them at the specific action points
+    })
   }
 
   // ===== Speed Control Creation =====
@@ -104,6 +327,11 @@ document.addEventListener("DOMContentLoaded", () => {
       speedMultiplier = Number.parseFloat(this.value)
       speedValue.textContent = speedMultiplier + "x"
 
+      // Play click sound on significant changes
+      if (Math.round(speedMultiplier * 10) % 5 === 0) {
+        SoundManager.play("click")
+      }
+
       if (simulationRunning && !simulationPaused) {
         clearInterval(timer)
         timer = setInterval(updateSimulation, 100 / speedMultiplier)
@@ -129,6 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pauseButton.classList.remove("resume")
       timer = setInterval(updateSimulation, 100 / speedMultiplier)
       logEvent("Simulation resumed")
+      SoundManager.play("resume")
     } else {
       // Pause the simulation
       simulationPaused = true
@@ -136,6 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pauseButton.classList.add("resume")
       clearInterval(timer)
       logEvent("Simulation paused")
+      SoundManager.play("pause")
     }
   }
 
@@ -149,14 +379,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isNaN(numJobs) || numJobs <= 0) {
       alert("Please enter a valid number of jobs (greater than 0).")
       numJobsInput.focus()
+      SoundManager.play("error")
       return
     }
 
     if (isNaN(totalMemory) || totalMemory < OS_KERNEL_SIZE + 10) {
       alert("Total memory must be at least " + (OS_KERNEL_SIZE + 10) + " KB.")
       totalMemoryInput.focus()
+      SoundManager.play("error")
       return
     }
+
+    // Play click sound
+    SoundManager.play("click")
 
     // Initialize tracking variables
     jobs = []
@@ -266,6 +501,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Prevent editing during simulation
     if (simulationRunning) return
 
+    // Play click sound
+    SoundManager.play("click")
+
     const cell = event.target
     const field = cell.dataset.field
     const index = Number.parseInt(cell.dataset.index)
@@ -290,14 +528,17 @@ document.addEventListener("DOMContentLoaded", () => {
         isValid = false
         input.value = ""
         input.placeholder = "Enter a number"
+        SoundManager.play("error")
       } else if ((field === "size" || field === "finishTime") && value <= 0) {
         isValid = false
         input.value = ""
         input.placeholder = "Must be > 0"
+        SoundManager.play("error")
       } else if (field === "loadingTime" && value < 0) {
         isValid = false
         input.value = ""
         input.placeholder = "Must be ≥ 0"
+        SoundManager.play("error")
       }
 
       if (!isValid) {
@@ -310,6 +551,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const unit = field === "size" ? "KB" : "msec"
       cell.textContent = `${value} ${unit}`
       cell.addEventListener("click", editCell)
+
+      // Play success sound
+      SoundManager.play("click")
     })
 
     input.addEventListener("input", () => {
@@ -328,14 +572,17 @@ document.addEventListener("DOMContentLoaded", () => {
           isValid = false
           input.value = ""
           input.placeholder = "Enter a number"
+          SoundManager.play("error")
         } else if ((field === "size" || field === "finishTime") && value <= 0) {
           isValid = false
           input.value = ""
           input.placeholder = "Must be > 0"
+          SoundManager.play("error")
         } else if (field === "loadingTime" && value < 0) {
           isValid = false
           input.value = ""
           input.placeholder = "Must be ≥ 0"
+          SoundManager.play("error")
         }
 
         if (!isValid) {
@@ -348,6 +595,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const unit = field === "size" ? "KB" : "msec"
         cell.textContent = `${value} ${unit}`
         cell.addEventListener("click", editCell)
+
+        // Play success sound
+        SoundManager.play("click")
 
         // Move to next cell
         if (field === "finishTime" && index === jobs.length - 1) {
@@ -486,6 +736,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // Add animation if job has moved
         if (jobPositions[job.id] !== undefined && jobPositions[job.id] !== index) {
           slotElement.classList.add("job-swap")
+          // Play movement sound
+          SoundManager.play("allocate")
         }
         jobPositions[job.id] = index
       } else {
@@ -525,6 +777,17 @@ document.addEventListener("DOMContentLoaded", () => {
     logEntry.classList.add("event-log-entry")
     logEntry.textContent = `[${timeStamp} ms] ${message}`
     eventLogElement.prepend(logEntry)
+
+    // Play subtle click for log entries
+    if (message.includes("allocated") || message.includes("loaded")) {
+      SoundManager.play("allocate")
+    } else if (message.includes("finished") || message.includes("released")) {
+      SoundManager.play("deallocate")
+    } else if (message.includes("rejected") || message.includes("insufficient")) {
+      SoundManager.play("error")
+    } else if (message.includes("Simulation ended")) {
+      SoundManager.play("complete")
+    }
   }
 
   // ===== Running Jobs Logging =====
@@ -570,6 +833,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    if (!isValid) {
+      SoundManager.play("error")
+    }
+
     return isValid
   }
 
@@ -585,6 +852,17 @@ document.addEventListener("DOMContentLoaded", () => {
   function startSimulation() {
     if (!validateJobInputs()) return
     if (simulationRunning) return
+
+    // Ensure audio context is initialized on user interaction
+    if (SoundManager.audioContext === null && window.AudioContext) {
+      SoundManager.audioContext = new (window.AudioContext || window.webkitAudioContext)()
+      if (SoundManager.audioContext.state === "suspended") {
+        SoundManager.audioContext.resume()
+      }
+    }
+
+    // Play start sound
+    SoundManager.play("start")
 
     simulationRunning = true
     simulationPaused = false
@@ -634,6 +912,9 @@ document.addEventListener("DOMContentLoaded", () => {
       clearInterval(timer)
       timer = null
     }
+
+    // Play click sound
+    SoundManager.play("click")
 
     currentTime = 0
     timerElement.textContent = "0 ms"
@@ -703,6 +984,7 @@ document.addEventListener("DOMContentLoaded", () => {
       simulationRunning = false
       document.getElementById("pauseSimulation").disabled = true
       logEvent("Simulation ended")
+      SoundManager.play("complete")
       startSimulationBtn.disabled = false
       generateTableBtn.disabled = false
     }
@@ -823,6 +1105,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateMemoryStats()
 
     logEvent(`${job.id} (${job.size}KB) allocated memory`)
+    SoundManager.play("allocate")
     return true
   }
 
@@ -848,6 +1131,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateMemoryStats()
 
       logEvent(`${job.id} (${job.size}KB) finished and released memory`)
+      SoundManager.play("deallocate")
     }
   }
 
